@@ -113,14 +113,14 @@ SQL::Object - Yet another SQL condition builder
     my $sql = sql('foo.id=?',1);
     $sql->as_sql; # 'foo.id=?'
     $sql->bind;   # qw/1/
-    $sql->add('foo.name=?','nekokak');
+    $sql->and('foo.name=?','nekokak');
     $sql->as_sql; # 'foo.id=? AND foo.name=?'
     $sql->bind;   # qw/1 nekokak/
     $sql->add_parens;
     $sql->as_sql; # ('foo.id=? AND foo.name=?')
     
     my $other_cond = sql('foo.id=?', 2);
-    $other_cond->add('foo.name=?','tokuhirom');
+    $other_cond->and('foo.name=?','tokuhirom');
     $other_cond->add_parens;
     $other_cond->as_sql; # ('foo.id=? AND foo.name=?')
     
