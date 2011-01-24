@@ -13,19 +13,17 @@ subtest 'basic' => sub {
     is_deeply [$sql->bind], [qw/1 nekokak/];
 
     $sql->or('bar.age=?', '33');
-    is $sql->as_sql, 'foo.id=? AND bar.name=? OR bar.age=?';
+    is $sql->as_sql, '(foo.id=? AND bar.name=?) OR bar.age=?';
     is_deeply [$sql->bind], [qw/1 nekokak 33/];
-
-    $sql->add_parens;
 
     my $cond = sql('foo.id=?', 2);
     $sql = $sql | $cond;
-    is $sql->as_sql, '(foo.id=? AND bar.name=? OR bar.age=?) OR foo.id=?';
+    is $sql->as_sql, '((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)';
     is_deeply [$sql->bind], [qw/1 nekokak 33 2/];
 
     $cond = sql('bar.name=?','tokuhirom');
     $sql = $sql | $cond;
-    is $sql->as_sql, '(foo.id=? AND bar.name=? OR bar.age=?) OR foo.id=? OR bar.name=?';
+    is $sql->as_sql, '(((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
     is_deeply [$sql->bind], [qw/1 nekokak 33 2 tokuhirom/];
 };
 
@@ -54,8 +52,8 @@ subtest 'sql and sql_cond_in' => sub {
     is $sql->as_sql, 'foo.id=?';
     is_deeply [$sql->bind], [qw/1/];
 
-    $sql = $sql | sql_cond_in('foo.id IN (%s)',[1,2])->add_parens;
-    is $sql->as_sql, 'foo.id=? OR (foo.id IN (?,?))';
+    $sql = $sql | sql_cond_in('foo.id IN (%s)',[1,2]);
+    is $sql->as_sql, '(foo.id=?) OR (foo.id IN (?,?))';
     is_deeply [$sql->bind], [qw/1 1 2/];
 };
 

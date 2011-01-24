@@ -64,7 +64,7 @@ sub and {
 
 sub or {
     my ($self, $sql, @bind) = @_;
-    $self->_compose('OR', $sql, \@bind);
+    $self->add_parens->_compose('OR', $sql, \@bind);
 }
 
 sub compose_and {
@@ -74,7 +74,7 @@ sub compose_and {
 
 sub compose_or  {
     my ($self, $other) = @_;
-    $self->or($other->{sql}, @{$other->{bind}});
+    $self->or($other->add_parens->as_sql, @{$other->{bind}});
 }
 
 sub add_parens {
@@ -116,19 +116,17 @@ SQL::Object - Yet another SQL condition builder
     $sql->and('foo.name=?','nekokak');
     $sql->as_sql; # 'foo.id=? AND foo.name=?'
     $sql->bind;   # qw/1 nekokak/
-    $sql->add_parens;
-    $sql->as_sql; # ('foo.id=? AND foo.name=?')
+    $sql->as_sql; # 'foo.id=? AND foo.name=?'
     
     my $other_cond = sql('foo.id=?', 2);
     $other_cond->and('foo.name=?','tokuhirom');
-    $other_cond->add_parens;
-    $other_cond->as_sql; # ('foo.id=? AND foo.name=?')
+    $other_cond->as_sql; # 'foo.id=? AND foo.name=?'
     
     $sql = $sql | $other_cond; # $sql->compose_or($other_cond)
     $sql->as_sql; # ('foo.id=? AND foo.name=?') OR ('foo.id=? AND foo.name=?')
     $sql->bind;   # qw/1 nekokak 2 tokuhirom/
 
-    $sql = $sql | sql_cond_in('foo.id IN (%s)',[1,2])->add_parens;
+    $sql = $sql | sql_cond_in('foo.id IN (%s)',[1,2]);
     $sql->as_sql; # (('foo.id=? AND foo.name=?') OR ('foo.id=? AND foo.name=?')) OR (foo.id IN (?,?))
     $sql->bind;   # qw/1 nekokak 2 tokuhirom 1 2/
 
