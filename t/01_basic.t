@@ -25,6 +25,9 @@ subtest 'basic' => sub {
     $sql = $sql | $cond;
     is $sql->as_sql, '(((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
     is_deeply [$sql->bind], [qw/1 nekokak 33 2 tokuhirom/];
+
+    my $query = "SELECT * FROM foo $sql";
+    is $query , 'SELECT * FROM foo (((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
 };
 
 subtest 'sql_type' => sub {

@@ -7,8 +7,9 @@ use Exporter qw/import/;
 our @EXPORT_OK = qw/sql sql_type sql_cond_in/;
 
 use overload
-    '&' => sub { $_[0]->compose_and($_[1]) },
-    '|' => sub { $_[0]->compose_or($_[1])  },
+    '&'  => sub { $_[0]->compose_and($_[1]) },
+    '|'  => sub { $_[0]->compose_or($_[1])  },
+    '""' => sub { $_[0]->as_sql             },
     fallback => 1
 ;
 
