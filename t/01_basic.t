@@ -1,10 +1,10 @@
 use strict;
 use warnings;
 use Test::More;
-use SQL::Object qw/sql sql_type sql_cond_in/;
+use SQL::Object qw/sql_obj sql_type/;
 
 subtest 'basic' => sub {
-    my $sql = sql('foo.id=?',1);
+    my $sql = sql_obj('foo.id=:id',+{id => 1});
     is $sql->as_sql, 'foo.id=?';
     is_deeply [$sql->bind], [qw/1/];
 
@@ -16,48 +16,31 @@ subtest 'basic' => sub {
     is $sql->as_sql, '(foo.id=? AND bar.name=?) OR bar.age=?';
     is_deeply [$sql->bind], [qw/1 nekokak 33/];
 
-    my $cond = sql('foo.id=?', 2);
+    my $cond = sql_obj('foo.id=?', 2);
     $sql = $sql | $cond;
     is $sql->as_sql, '((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)';
     is_deeply [$sql->bind], [qw/1 nekokak 33 2/];
 
-    $cond = sql('bar.name=?','tokuhirom');
+    $cond = sql_obj('bar.name=?','tokuhirom');
     $sql = $sql | $cond;
     is $sql->as_sql, '(((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
     is_deeply [$sql->bind], [qw/1 nekokak 33 2 tokuhirom/];
 
-    my $query = "SELECT * FROM foo $sql";
-    is $query , 'SELECT * FROM foo (((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
+    is $sql->as_sql , '(((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
+
+    $sql = sql_obj('SELECT * FROM user WHERE ') + $sql;
+
+    is $sql->as_sql , 'SELECT * FROM user WHERE (((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
 };
 
 subtest 'sql_type' => sub {
     my $var = 1;
-    my $sql = sql('foo.id=?',sql_type(\$var, 'SQL_INTEGER'));
+    my $sql = sql_obj('foo.id=?',sql_type(\$var, 'SQL_INTEGER'));
     is $sql->as_sql, 'foo.id=?';
     my $bind = $sql->bind;
     is $bind->[0]->value_ref, \$var;
     is $bind->[0]->value    , 1;
     is $bind->[0]->type     , 'SQL_INTEGER';
-};
-
-subtest 'sql_cond_in' => sub {
-    my $sql = sql_cond_in('foo.id IN (%s)',[1,2],'SQL_INTEGER');
-    is $sql->as_sql, 'foo.id IN (?,?)';
-    my $bind = $sql->bind;
-    is $bind->[0]->value , 1;
-    is $bind->[0]->type  ,'SQL_INTEGER';
-    is $bind->[1]->value , 2;
-    is $bind->[1]->type  ,'SQL_INTEGER';
-};
-
-subtest 'sql and sql_cond_in' => sub {
-    my $sql = sql('foo.id=?',1);
-    is $sql->as_sql, 'foo.id=?';
-    is_deeply [$sql->bind], [qw/1/];
-
-    $sql = $sql | sql_cond_in('foo.id IN (%s)',[1,2]);
-    is $sql->as_sql, '(foo.id=?) OR (foo.id IN (?,?))';
-    is_deeply [$sql->bind], [qw/1 1 2/];
 };
 
 done_testing;
