@@ -2,8 +2,6 @@ use inc::Module::Install;
 name 'SQL-Object';
 all_from 'lib/SQL/Object.pm';
 
-#requires '';
-
 test_requires 'Test::More' => '0.94';
 
 tests 't/*.t t/*/*.t';
