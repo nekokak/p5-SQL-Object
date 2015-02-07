@@ -28,6 +28,7 @@ subtest 'basic' => sub {
 
     $sql = sql_obj('SELECT * FROM user WHERE ') + $sql;
     is $sql->as_sql , 'SELECT * FROM user WHERE (((foo.id=? AND bar.name=?) OR bar.age=?) OR (foo.id=?)) OR (bar.name=?)';
+    is_deeply [$sql->bind], [qw/1 nekokak 33 2 tokuhirom/];
 };
 
 subtest 'sql_type' => sub {
