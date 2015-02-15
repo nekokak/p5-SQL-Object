@@ -7,10 +7,10 @@ use Exporter qw/import/;
 our @EXPORT_OK = qw/sql_obj sql_type/;
 
 use overload
-    '&'  => sub { $_[0]->compose_and($_[1]) },
-    '|'  => sub { $_[0]->compose_or($_[1])  },
-    '+'  => sub { $_[0]->join($_[1])        },
-    '""' => sub { $_[0]->as_sql             },
+    '&'  => sub { $_[0]->compose_and ($_[1]) },
+    '|'  => sub { $_[0]->compose_or  ($_[1]) },
+    '+'  => sub { $_[0]->compose_join($_[1]) },
+    '""' => sub { $_[0]->as_sql              },
     fallback => 1
 ;
 
@@ -54,10 +54,23 @@ sub new {
 
 sub _compose {
     my ($self, $op, $sql, $bind) = @_;
-
-    $self->{sql} = $self->{sql} . " $op " . $sql;
+    if ($op eq 'OR') {
+        $self->{sql} = '('.$self->{sql}.') OR ('.$sql.')';
+    } elsif ($op eq 'AND') {
+        $self->{sql} = $self->{sql}.' AND '.$sql;
+    } elsif ($op eq '') {
+        $self->{sql} = $self->{sql}.' '.$sql;
+    } else {
+        Carp::croak("operator $op is unknown");
+    } 
     $self->{bind} = [@{$self->{bind}}, @$bind];
     $self;
+}
+
+sub _compose_copy {
+    my ($self, $op, $sql, $bind) = @_;
+    my $copy = sql_obj($self->{sql}, [@{$self->{bind}}]);
+    $copy->_compose($op, $sql, $bind);
 }
 
 sub and {
@@ -67,24 +80,27 @@ sub and {
 
 sub or {
     my ($self, $sql, @bind) = @_;
-    $self->add_parens->_compose('OR', $sql, \@bind);
+    $self->_compose('OR', $sql, \@bind);
 }
 
 sub join {
-    my ($self, $other) = @_;
-    $self->{sql} = $self->{sql} . $other->{sql};
-    $self->{bind} = [@{$self->{bind}}, @{$other->{bind}}];
-    $self;
+    my ($self, $sql, @bind) = @_;
+    $self->_compose('', $sql, \@bind);
 }
 
 sub compose_and {
     my ($self, $other) = @_;
-    $self->and($other->{sql}, @{$other->{bind}});
+    $self->_compose_copy('AND', $other->{sql}, $other->{bind});
 }
 
-sub compose_or  {
+sub compose_or {
     my ($self, $other) = @_;
-    $self->or($other->add_parens->as_sql, @{$other->{bind}});
+    $self->_compose_copy('OR', $other->{sql}, $other->{bind});
+}
+
+sub compose_join {
+    my ($self, $other) = @_;
+    $self->_compose_copy('', $other->{sql}, $other->{bind});
 }
 
 sub add_parens {
