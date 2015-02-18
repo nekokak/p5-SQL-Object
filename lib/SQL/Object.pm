@@ -77,6 +77,7 @@ sub _parse_args {
 
 sub _compose {
     my ($self, $op, $sql, $bind) = @_;
+    ($sql, $bind) = _parse_args($sql, $bind);
     if ($op eq 'OR') {
         $self->{sql} = '('.$self->{sql}.') OR ('.$sql.')';
     } elsif ($op eq 'AND') {

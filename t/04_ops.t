@@ -31,6 +31,11 @@ subtest '_compose' => sub {
     $sql = sql_obj('SQL1', []);
     eval { $sql->_compose('UNKNOWN', 'SQL2', []) };
     like $@, qr/operator UNKNOWN is unknown/, 'unknown operator';
+
+    # parse args
+    $sql = sql_obj('A = :a', {a => 'a'});
+    $sql->_compose('AND', 'B = :b', [ {b => 'b'} ]);
+    test_obj $sql, 'A = ? AND B = ?', ['a', 'b'], 'parse args'; 
 };
 
 subtest 'methods' => sub {
@@ -50,6 +55,16 @@ subtest 'methods' => sub {
     $sql = sql_obj('SQL1', []);
     $sql->join('SQL2');
     test_obj $sql, 'SQL1 SQL2', [], 'join';
+};
+
+subtest 'methods accept hash' => sub {
+    my $sql;
+
+    # sql_obj accepts a hash
+    # op() does it too
+    $sql = sql_obj('A = :a', {a => 1});
+    $sql->and('A IN (:b, :c)', {b => 2, c => 3});
+    test_obj $sql, 'A = ? AND A IN (?, ?)', [1, 2, 3];
 };
 
 subtest 'operators' => sub {
