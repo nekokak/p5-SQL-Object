@@ -18,28 +18,7 @@ use overload
 our $VERSION = '0.01';
 
 sub sql_obj {
-    my ($sql, $args) = @_;
-
-    my $bind;
-    if (ref($args) eq 'HASH') {
-        my %named_bind = %{$args};
-        $sql =~ s{:(\w+)}{
-            Carp::croak("$1 does not exists in hash") if !exists $named_bind{$1};
-            if ( ref $named_bind{$1} && ref $named_bind{$1} eq "ARRAY" ) {
-                push @$bind, @{ $named_bind{$1} };
-                my $tmp = join ',', map { '?' } @{ $named_bind{$1} };
-                "($tmp)";
-            } else {
-                push @$bind, $named_bind{$1};
-                '?'
-            }
-        }ge;
-    }
-    else {
-        $bind = ref($args) eq 'ARRAY' ? $args : [$args];
-    }
-
-    SQL::Object->new(sql => $sql, bind => $bind);
+    __PACKAGE__->new(@_);
 }
 
 sub sql_type {
@@ -48,9 +27,52 @@ sub sql_type {
 }
 
 sub new {
-    my $class = shift;
-    my %args = @_==1 ? %{$_[0]} : @_;
-    bless {%args}, $class;
+    my ($class, $sql, @bind) = @_;
+    my ($sql2, $bind2) = _parse_args($sql, \@bind);
+    bless {sql => $sql2, bind => $bind2}, $class;
+}
+
+sub _parse_args {
+    my ($sql1, $bind1) = @_;
+    my ($sql2, $bind2);
+
+    $sql2 = $sql1;
+
+    my $c = scalar @$bind1;
+    my $b0 = $bind1->[0];
+
+    if ($c == 0) {
+        $bind2 = [];
+    }
+    elsif ($c == 1) {
+        if (ref($b0) eq 'ARRAY') {
+            $bind2 = $b0;
+        }
+        elsif (ref($b0) eq 'HASH') {
+            my %named_bind = %{$b0};
+            $sql2 =~ s{:(\w+)}{
+                Carp::croak("$1 does not exists in hash") if !exists $named_bind{$1};
+                if ( ref $named_bind{$1} && ref $named_bind{$1} eq "ARRAY" ) {
+                    push @$bind2, @{ $named_bind{$1} };
+                    my $tmp = join ',', map { '?' } @{ $named_bind{$1} };
+                     "($tmp)";
+                } else {
+                    push @$bind2, $named_bind{$1};
+                    '?'
+                }
+            }ge;
+        }
+        # scalar or sql_type object
+        else {
+            $bind2 = [$b0];
+        }
+    }
+    # @args > 1
+    else {
+        $bind2 = [@$bind1];
+    }
+
+    ($sql2, $bind2);
 }
 
 sub _compose {
@@ -114,7 +136,8 @@ sub as_sql { $_[0]->{sql} }
 
 sub bind { 
     my $self = shift;
-    map { ref eq 'SCALAR'? $$_: $_ } @{$self->{bind}};
+    my @bind = map { ref eq 'SCALAR'? $$_: $_ } @{$self->{bind}};
+    @bind;
 }
 
 package # hide from PAUSE

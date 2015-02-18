@@ -37,10 +37,10 @@ subtest 'sql_type' => sub {
     my $var = 1;
     my $sql = sql_obj('foo.id=?',sql_type(\$var, 'SQL_INTEGER'));
     is $sql->as_sql, 'foo.id=?';
-    my $bind = $sql->bind;
-    is $bind->[0]->value_ref, \$var;
-    is $bind->[0]->value    , 1;
-    is $bind->[0]->type     , 'SQL_INTEGER';
+    my @bind = $sql->bind;
+    is $bind[0]->value_ref, \$var;
+    is $bind[0]->value    , 1;
+    is $bind[0]->type     , 'SQL_INTEGER';
 };
 
 done_testing;
