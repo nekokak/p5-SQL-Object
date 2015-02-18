@@ -111,7 +111,11 @@ sub add_parens {
 }
 
 sub as_sql { $_[0]->{sql} }
-sub bind   { wantarray ? @{$_[0]->{bind}} : $_[0]->{bind} }
+
+sub bind { 
+    my $self = shift;
+    map { ref eq 'SCALAR'? $$_: $_ } @{$self->{bind}};
+}
 
 package # hide from PAUSE
      SQL::Object::Type;
