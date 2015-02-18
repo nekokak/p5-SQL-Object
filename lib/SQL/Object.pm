@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use utf8;
 use Exporter qw/import/;
+use Carp;
 
 our @EXPORT_OK = qw/sql_obj sql_type/;
 
