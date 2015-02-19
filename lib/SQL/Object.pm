@@ -28,12 +28,15 @@ sub sql_type {
 
 sub new {
     my ($class, $sql, @bind) = @_;
-    my ($sql2, $bind2) = _parse_args($sql, \@bind);
-    bless {sql => $sql2, bind => $bind2}, $class;
+	my $self = bless({}, $class);
+    my ($sql2, $bind2) = $self->_parse_args($sql, \@bind);
+    $self->{sql} = $sql2;
+	$self->{bind} = $bind2;
+	$self;
 }
 
 sub _parse_args {
-    my ($sql1, $bind1) = @_;
+    my ($self, $sql1, $bind1) = @_;
     my ($sql2, $bind2);
 
     $sql2 = $sql1;
@@ -77,7 +80,7 @@ sub _parse_args {
 
 sub _compose {
     my ($self, $op, $sql, $bind) = @_;
-    ($sql, $bind) = _parse_args($sql, $bind);
+    ($sql, $bind) = $self->_parse_args($sql, $bind);
     if ($op eq 'OR') {
         $self->{sql} = '('.$self->{sql}.') OR ('.$sql.')';
     } elsif ($op eq 'AND') {
