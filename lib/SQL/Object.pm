@@ -3,42 +3,22 @@ use strict;
 use warnings;
 use utf8;
 use Exporter qw/import/;
+use Carp;
 
 our @EXPORT_OK = qw/sql_obj sql_type/;
 
 use overload
-    '&'  => sub { $_[0]->compose_and($_[1]) },
-    '|'  => sub { $_[0]->compose_or($_[1])  },
-    '+'  => sub { $_[0]->join($_[1])        },
-    '""' => sub { $_[0]->as_sql             },
+    '&'  => sub { $_[0]->compose_and ($_[1]) },
+    '|'  => sub { $_[0]->compose_or  ($_[1]) },
+    '+'  => sub { $_[0]->compose_join($_[1]) },
+    '""' => sub { $_[0]->as_sql              },
     fallback => 1
 ;
 
 our $VERSION = '0.01';
 
 sub sql_obj {
-    my ($sql, $args) = @_;
-
-    my $bind;
-    if (ref($args) eq 'HASH') {
-        my %named_bind = %{$args};
-        $sql =~ s{:(\w+)}{
-            Carp::croak("$1 does not exists in hash") if !exists $named_bind{$1};
-            if ( ref $named_bind{$1} && ref $named_bind{$1} eq "ARRAY" ) {
-                push @$bind, @{ $named_bind{$1} };
-                my $tmp = join ',', map { '?' } @{ $named_bind{$1} };
-                "($tmp)";
-            } else {
-                push @$bind, $named_bind{$1};
-                '?'
-            }
-        }ge;
-    }
-    else {
-        $bind = ref($args) eq 'ARRAY' ? $args : [$args];
-    }
-
-    SQL::Object->new(sql => $sql, bind => $bind);
+    __PACKAGE__->new(@_);
 }
 
 sub sql_type {
@@ -47,17 +27,86 @@ sub sql_type {
 }
 
 sub new {
-    my $class = shift;
-    my %args = @_==1 ? %{$_[0]} : @_;
-    bless {%args}, $class;
+    my ($class, $sql, @bind) = @_;
+	my $self = bless({}, $class);
+    my ($sql2, $bind2) = $self->_parse_args($sql, \@bind);
+    $self->{sql} = $sql2;
+	$self->{bind} = $bind2;
+	$self;
+}
+
+sub _parse_args {
+    my ($self, $sql1, $bind1) = @_;
+    my ($sql2, $bind2);
+
+    $sql2 = $sql1;
+
+    my $c = scalar @$bind1;
+    my $b0 = $bind1->[0];
+
+    if ($c == 0) {
+        $bind2 = [];
+    }
+    elsif ($c == 1) {
+        if (ref($b0) eq 'ARRAY') {
+            $bind2 = $b0;
+        }
+        elsif (ref($b0) eq 'HASH') {
+            my %named_bind = %{$b0};
+			my %unused = %named_bind;
+
+            $sql2 =~ s{:(\w+)}{
+				my $name = $1;
+                exists($named_bind{$name})
+					or Carp::croak("$name not found in hash");
+				my $value = $named_bind{$name};
+				delete($unused{$name});
+                if (ref($value) eq "ARRAY") {
+                    push @$bind2, @$value;
+                    my $tmp = join ',', map { '?' } @$value;
+                     "($tmp)";
+                } else {
+                    push @$bind2, $value;
+                    '?'
+            	}
+			}ge;
+ 			
+			keys(%unused) == 0
+				or Carp::croak(join(',', keys(%unused)).' not found in SQL');
+        }
+        # scalar or sql_type object
+        else {
+            $bind2 = [$b0];
+        }
+    }
+    # @args > 1
+    else {
+        $bind2 = [@$bind1];
+    }
+
+    ($sql2, $bind2);
 }
 
 sub _compose {
     my ($self, $op, $sql, $bind) = @_;
-
-    $self->{sql} = $self->{sql} . " $op " . $sql;
+    ($sql, $bind) = $self->_parse_args($sql, $bind);
+    if ($op eq 'OR') {
+        $self->{sql} = '('.$self->{sql}.') OR ('.$sql.')';
+    } elsif ($op eq 'AND') {
+        $self->{sql} = $self->{sql}.' AND '.$sql;
+    } elsif ($op eq '') {
+        $self->{sql} = $self->{sql}.' '.$sql;
+    } else {
+        Carp::croak("operator $op is unknown");
+    } 
     $self->{bind} = [@{$self->{bind}}, @$bind];
     $self;
+}
+
+sub _compose_copy {
+    my ($self, $op, $sql, $bind) = @_;
+    my $copy = sql_obj($self->{sql}, [@{$self->{bind}}]);
+    $copy->_compose($op, $sql, $bind);
 }
 
 sub and {
@@ -67,24 +116,27 @@ sub and {
 
 sub or {
     my ($self, $sql, @bind) = @_;
-    $self->add_parens->_compose('OR', $sql, \@bind);
+    $self->_compose('OR', $sql, \@bind);
 }
 
 sub join {
-    my ($self, $other) = @_;
-    $self->{sql} = $self->{sql} . $other->{sql};
-    $self->{bind} = [@{$self->{bind}}, @{$other->{bind}}];
-    $self;
+    my ($self, $sql, @bind) = @_;
+    $self->_compose('', $sql, \@bind);
 }
 
 sub compose_and {
     my ($self, $other) = @_;
-    $self->and($other->{sql}, @{$other->{bind}});
+    $self->_compose_copy('AND', $other->{sql}, $other->{bind});
 }
 
-sub compose_or  {
+sub compose_or {
     my ($self, $other) = @_;
-    $self->or($other->add_parens->as_sql, @{$other->{bind}});
+    $self->_compose_copy('OR', $other->{sql}, $other->{bind});
+}
+
+sub compose_join {
+    my ($self, $other) = @_;
+    $self->_compose_copy('', $other->{sql}, $other->{bind});
 }
 
 sub add_parens {
@@ -94,7 +146,12 @@ sub add_parens {
 }
 
 sub as_sql { $_[0]->{sql} }
-sub bind   { wantarray ? @{$_[0]->{bind}} : $_[0]->{bind} }
+
+sub bind { 
+    my $self = shift;
+    my @bind = map { ref eq 'SCALAR'? $$_: $_ } @{$self->{bind}};
+    @bind;
+}
 
 package # hide from PAUSE
      SQL::Object::Type;
