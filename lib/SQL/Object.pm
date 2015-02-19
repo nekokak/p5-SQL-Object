@@ -53,17 +53,26 @@ sub _parse_args {
         }
         elsif (ref($b0) eq 'HASH') {
             my %named_bind = %{$b0};
+			my %unused = %named_bind;
+
             $sql2 =~ s{:(\w+)}{
-                Carp::croak("$1 does not exists in hash") if !exists $named_bind{$1};
-                if ( ref $named_bind{$1} && ref $named_bind{$1} eq "ARRAY" ) {
-                    push @$bind2, @{ $named_bind{$1} };
-                    my $tmp = join ',', map { '?' } @{ $named_bind{$1} };
+				my $name = $1;
+                exists($named_bind{$name})
+					or Carp::croak("$name not found in hash");
+				my $value = $named_bind{$name};
+				delete($unused{$name});
+                if (ref($value) eq "ARRAY") {
+                    push @$bind2, @$value;
+                    my $tmp = join ',', map { '?' } @$value;
                      "($tmp)";
                 } else {
-                    push @$bind2, $named_bind{$1};
+                    push @$bind2, $value;
                     '?'
-                }
-            }ge;
+            	}
+			}ge;
+ 			
+			keys(%unused) == 0
+				or Carp::croak(join(',', keys(%unused)).' not found in SQL');
         }
         # scalar or sql_type object
         else {

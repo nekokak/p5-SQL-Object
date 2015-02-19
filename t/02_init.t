@@ -2,12 +2,7 @@ use strict;
 use warnings;
 use Test::More;
 use SQL::Object qw(sql_obj);
-
-sub test_obj {
-    my ($obj, $stmt, $bind, $desc) = @_;
-    is $obj->as_sql, $stmt, $desc;
-    is_deeply [$obj->bind], [@$bind], $desc;
-}
+BEGIN { require 'tests.inc' };
 
 subtest 'init 0' => sub {
     my $sql;
