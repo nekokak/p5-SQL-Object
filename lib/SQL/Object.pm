@@ -34,8 +34,14 @@ sub sql_obj {
             }
         }ge;
     }
+    elsif (ref($args) eq 'ARRAY') {
+        $bind = $args;
+    }
+    elsif (defined($args)) {
+        $bind = [$args];
+    }
     else {
-        $bind = ref($args) eq 'ARRAY' ? $args : [$args];
+        $bind = [];
     }
 
     SQL::Object->new(sql => $sql, bind => $bind);
