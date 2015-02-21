@@ -8,12 +8,12 @@ package MyObject;
 use parent qw(SQL::Object);
 
 sub _parse_args {
-	my ($self, $sql, $bind) = @_;
-	$sql = lc($sql);
-	for (@$bind) {
-		ref eq '' or die 'this accepts lists only';
-	}
-	($sql, $bind);
+    my ($self, $sql, $bind) = @_;
+    $sql = lc($sql);
+    for (@$bind) {
+        ref eq '' or die 'this accepts lists only';
+    }
+    ($sql, $bind);
 }
 
 package main;
@@ -21,11 +21,11 @@ package main;
 subtest 'subclass' => sub {
     my $sql;
 
-	$sql = MyObject->new('SQL', 1, 2, 3);
-	test_obj $sql, 'sql', [1, 2, 3];
+    $sql = MyObject->new('SQL', 1, 2, 3);
+    test_obj $sql, 'sql', [1, 2, 3];
 
-	eval { $sql  = MyObject->new('SQL', {a => 1}) };
-	like $@, qr/this accepts lists only/;
+    eval { $sql  = MyObject->new('SQL', {a => 1}) };
+    like $@, qr/this accepts lists only/;
 };
 
 done_testing;

@@ -28,11 +28,11 @@ sub sql_type {
 
 sub new {
     my ($class, $sql, @bind) = @_;
-	my $self = bless({}, $class);
+    my $self = bless({}, $class);
     my ($sql2, $bind2) = $self->_parse_args($sql, \@bind);
     $self->{sql} = $sql2;
-	$self->{bind} = $bind2;
-	$self;
+    $self->{bind} = $bind2;
+    $self;
 }
 
 sub _parse_args {
@@ -53,14 +53,14 @@ sub _parse_args {
         }
         elsif (ref($b0) eq 'HASH') {
             my %named_bind = %{$b0};
-			my %unused = %named_bind;
+            my %unused = %named_bind;
 
             $sql2 =~ s{:(\w+)}{
-				my $name = $1;
+                my $name = $1;
                 exists($named_bind{$name})
-					or Carp::croak("$name not found in hash");
-				my $value = $named_bind{$name};
-				delete($unused{$name});
+                    or Carp::croak("$name not found in hash");
+                my $value = $named_bind{$name};
+                delete($unused{$name});
                 if (ref($value) eq "ARRAY") {
                     push @$bind2, @$value;
                     my $tmp = join ',', map { '?' } @$value;
@@ -68,11 +68,11 @@ sub _parse_args {
                 } else {
                     push @$bind2, $value;
                     '?'
-            	}
-			}ge;
- 			
-			keys(%unused) == 0
-				or Carp::croak(join(',', keys(%unused)).' not found in SQL');
+                }
+            }ge;
+             
+            keys(%unused) == 0
+                or Carp::croak(join(',', keys(%unused)).' not found in SQL');
         }
         # scalar or sql_type object
         else {
